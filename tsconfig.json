@@ -30,6 +30,8 @@
     "src/**/*"
   ],
   "exclude": [
-    "src/*/files/**/*"
+    "src/*/files/**/*",
+    "src/store/**/*",
+    "src/app/**/*"
   ]
 }

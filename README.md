@@ -22,26 +22,16 @@ export const LoginAction = createAction(
 
 To use this in your project, install `ngrx-migrate-actions` and run one of below command. Reducer migrations still need more work.
 
-If you are using `yarn` you can run this below command
 ```bash
-yarn run ngrx-migrate-actions:convertActions --filePath <folder which contains action files>
-yarn run ngrx-migrate-actions:convertReducers --filePath <folder which contains reducer files>
+yarn install ngrx-migrate-actions --dev // install using yarn
+npm install -d ngrx-migrate-actions // install using npm
+schematics .\node_modules\ngrx-migrate-actions\:update-ngrx --filePath <root folder>
 ```
 
-If you are using `npm` you can run this below command
-```bash
-npm run ngrx-migrate-actions:convertActions --filePath <folder which contains action files>
-npm run ngrx-migrate-actions:convertReducers --filePath <folder which contains reducer files>
-```
-
-### Compile and build
+### For local development
 
 ```
+npm install -g @angular-devkit/schematics-cli
 npm run-script build
-```
-
-### Execute it in local
-
-```
-schematics .:convertReducers --filePath <file path> --dry-run=false
+rm .\src\app\ -r -fo; xcopy.exe /E /I C:\Users\kys\Downloads\app .\src\app; schematics .:update-ngrx --filePath .\src\app\ --dry-run=false; xcopy.exe /E /I /Y .\src\app ..\lendingclientapp\src\app
 ```

@@ -1,41 +1,14 @@
-import { Rule, SchematicContext, SchematicsException, Tree } from '@angular-devkit/schematics';
 import { Util } from './utils';
 
-// You don't have to export the function as default. You can also have more than one rule factory
-// per file.
-export function migrateReducers(_options: any): Rule {
-  return (tree: Tree, _context: SchematicContext) => {
-    const { filePath } = _options;
-    if (!filePath) {
-      throw new SchematicsException(`filePath option is required.`);
-    }
-    tree.getDir(filePath)
-      .visit(fileName => {
-        if (!fileName.endsWith('reducer.ts')) {
-          return;
-        }
-        const content: Buffer | null = tree.read(fileName);
-        if (!content) {
-          return;
-        }
-        let strContent: string = '';
-        if (content) strContent = content.toString();
-        const updatedContent: string | null = process(strContent);
-        if (updatedContent) {
-          console.log('Updated Reducer Content:', updatedContent);
-          tree.overwrite(fileName, updatedContent);
-        }
-      });
-    return tree;
-  };
-}
-
-function process(content: string): string | null {
+export function process(content: string, actionContent: string): string | null {
   let output: string | null = Util.removeInlineComment(content);
-  output = Util.removeMultilineComment(content);
-  const allCases = getCases(content);
-  const allCaseReturns = getCaseReturnValues(content);
-  output = createReducer(content, allCases, allCaseReturns);
+  output = Util.removeMultilineComment(output);
+  output = output.replace('return state = undefined;', 'return { ...state, pdfObjectUrl: undefined };');
+  const allCases = getCases(output);
+  const allCaseReturns = getCaseReturnValues(output);
+  output = createReducer(output, allCases, allCaseReturns, actionContent);
+  output = (output || '').replace(/InitialState/gi, 'initialState');
+  output = Util.updateActionNames(/(?<=on\([\s]*\w*\.)\w*(?=,)/g, output, actionContent);
   return output;
 }
 
@@ -51,7 +24,7 @@ function getCaseReturnValues(content: string): string[] {
   return list.map(x => x.trim());
 }
 
-function createReducer(content: string, allCases: string[], allCaseReturns: string[]): string | null {
+function createReducer(content: string, allCases: string[], allCaseReturns: string[], actionContent: string): string | null {
   let match: RegExpExecArray | null;
   const re = /(export(\ )+function)/gi;
   const reAction = /action([^ |,|}]+)/g;
@@ -72,15 +45,23 @@ export const myReducer = createReducer(
     const listOn: string[] = [];
     allCases.forEach((acase, i) => {
       let caseBlock = allCaseReturns[i];
-      const match = caseBlock.match(reAction);
-      let key = 'payload';
-      if (match) {
-        key = match[0].split('.')[1];
-        caseBlock = caseBlock.replace(reAction, key);
-      }
+      if (caseBlock) {
+        const match = caseBlock.match(reAction);
+        let key = '';
+        if (match) {
+          key = match[0].split('.')[1];
+          caseBlock = caseBlock.replace(reAction, key);
+        }
+        
+        const action = acase.split('.')[1];
+        var actionConstructorWithNoArg = isActionConstructorHaveArguments(action, actionContent);
+        if (actionConstructorWithNoArg) {
+          key = ''; // when no arguments set key to empty string
+        }
 
-      listOn.push(`
+        listOn.push(`
   on(${acase}, (state, { ${key} }) => ({ ${caseBlock} }))`);
+      }
     });
     template += listOn.join(',');
     template += `
@@ -120,4 +101,13 @@ function findClassEndPos(str: string, pos: number): number {
     }
   }
   return 0;
+}
+
+function isActionConstructorHaveArguments(action: string, actionContent: string) {
+  const regex = `(?<=readonly[\\s\\S]*${action}[\\s\\S]*constructor\\().*(?=\\))`;
+  var match = actionContent.match(regex);
+  if (match && match[0].trim() == '') {
+    return true;
+  }
+  return false;
 }
